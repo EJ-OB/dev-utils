@@ -44,37 +44,47 @@ class ManageCodeReviews extends ManageRecords
                         ->maxLength(2048),
                 ])
                 ->action(function (ParsePullRequestUrl $parse, array $data) {
-                    $token = Config::string('services.github.token');
-                    $pr = $parse($data['pull_request_url'] ?? '');
-                    $comment = $data['comment'] ?? '';
-
-                    $response = Http::baseUrl(Config::string('services.github.base_url'))
-                        ->withHeaders([
+                    try {
+                        $token = Config::string('services.github.token');
+                        $client = Http::baseUrl(Config::string('services.github.base_url'))->withHeaders([
                             'Authorization' => "Bearer $token",
                             'X-GitHub-Api-Version' => Config::string('services.github.version'),
-                        ])
-                        ->post($pr->toCodeReviewPath(), [
-                            ...$comment ? ['body' => $data['comment']] : [],
+                        ]);
+                        $pr = $parse($data['pull_request_url'] ?? '');
+
+                        $author = $client->get($pr->toPullRequestPath())->json('user.login');
+
+                        assert(is_string($author), 'Expected author to be a string.');
+
+                        $response = $client->post($pr->toCodeReviewPath(), [
+                            'body' => $data['comment'] ?? "@{$author} Reviewed and approved.",
                             'event' => CodeReviewEvent::APPROVE->name,
                         ]);
 
-                    if ($response->ok()) {
-                        CodeReview::create([
-                            'project' => $pr->getProject(),
-                            'link' => $data['pull_request_url'],
-                            'status' => CodeReviewStatus::APPROVED,
-                        ]);
+                        if ($response->ok()) {
+                            CodeReview::create([
+                                'project' => $pr->getProject(),
+                                'link' => $data['pull_request_url'],
+                                'status' => CodeReviewStatus::APPROVED,
+                            ]);
 
-                        Notification::make('approved')
-                            ->success()
-                            ->title('Pull Request Approved')
-                            ->body('The pull request has been approved successfully.')
-                            ->send();
-                    } else {
-                        Notification::make('approval_failed')
+                            Notification::make('approved')
+                                ->success()
+                                ->title('Pull Request Approved')
+                                ->body('The pull request has been approved successfully.')
+                                ->send();
+                        } else {
+                            Notification::make('approval_failed')
+                                ->danger()
+                                ->title('Approval Failed')
+                                ->body('There was an error approving the pull request.')
+                                ->send();
+                        }
+                    } catch (\Exception $e) {
+                        Notification::make('approval_error')
                             ->danger()
-                            ->title('Approval Failed')
-                            ->body('There was an error approving the pull request.')
+                            ->title('Error')
+                            ->body('An error occurred while processing the approval: '.$e->getMessage())
                             ->send();
                     }
                 }),

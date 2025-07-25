@@ -17,6 +17,11 @@ class PullRequestData extends Data
         public int $pullNumber,
     ) {}
 
+    public function toPullRequestPath(): string
+    {
+        return "repos/{$this->owner}/{$this->repo}/pulls/{$this->pullNumber}";
+    }
+
     public function toCodeReviewPath(): string
     {
         return "repos/{$this->owner}/{$this->repo}/pulls/{$this->pullNumber}/reviews";
