@@ -31,7 +31,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             'photo' => ['nullable', 'mimes:jpg,jpeg,png', 'max:1024'],
         ])->validateWithBag('updateProfileInformation');
 
-        if ($validated['photo'] instanceof UploadedFile) {
+        if (isset($validated['photo'])) {
             $user->updateProfilePhoto($validated['photo']);
         }
 
