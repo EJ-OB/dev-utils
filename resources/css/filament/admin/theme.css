@@ -1,0 +1,8 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+@config 'tailwind.config.js';
+
+.fi-sidebar-nav {
+    border-right: calc(1px * 0.5) solid transparent;
+    border-image: linear-gradient(transparent 5%, var(--color-cm-amber) 50%, transparent 95%) 1;
+}
